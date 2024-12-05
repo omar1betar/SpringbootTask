@@ -3,7 +3,6 @@ package com.neoleaptask.NeoleapTask.mapper;
 import com.neoleaptask.NeoleapTask.dto.OrderRequestDto;
 import com.neoleaptask.NeoleapTask.enums.OrderStatus;
 import com.neoleaptask.NeoleapTask.model.Order;
-import org.springframework.stereotype.Component;
 
 public class OrderMapper {
 
