@@ -13,6 +13,35 @@ services:
     networks:
       - rabbitmq_network
 
+  mysql:
+    image: mysql:8.3.0
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql
+    ports:
+      - "3305:3306"
+    volumes:
+      - ./mysql:/var/lib/mysql   # Fixed the trailing '-' in the volume section
+    networks:
+      - rabbitmq_network
+
+  springboot-app:
+    build:
+      context: ../SpringbootTask # Path to the Spring Boot app directory
+    container_name: springboot-app
+    ports:
+      - "8000:8000"             # Expose Spring Boot app
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/neoleaptask
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: mysql
+      SPRING_RABBITMQ_HOST: rabbitmq  # Use the correct RabbitMQ service hostname
+    depends_on:
+      - mysql
+      - rabbitmq
+    networks:
+      - rabbitmq_network
+
 networks:
   rabbitmq_network:
     driver: bridge
