@@ -1,6 +1,7 @@
 package com.neoleaptask.NeoleapTask.controller;
 
 import com.neoleaptask.NeoleapTask.dto.OrderRequestDto;
+import com.neoleaptask.NeoleapTask.dto.PaymentResponseDto;
 import com.neoleaptask.NeoleapTask.model.Order;
 import com.neoleaptask.NeoleapTask.service.OrderService;
 import org.slf4j.Logger;
@@ -11,11 +12,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
 @RequestMapping("/orders")
-@CacheConfig(cacheNames = "orders")  // Configures the cache name for this controller
+@CacheConfig(cacheNames = "orders")
 public class OrderController {
 
     // Logger to log important information, warnings, and errors
@@ -86,5 +88,16 @@ public class OrderController {
 
         // Return HTTP status 204 (No Content) after deletion
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/payment")
+    public ResponseEntity<String> createPayment(@PathVariable Long id, @RequestParam BigDecimal amount) {
+        PaymentResponseDto paymentSuccessful = orderService.createPayment(id, amount);
+
+        if (paymentSuccessful.isStatus()) {
+            return ResponseEntity.status(HttpStatus.OK).body("Payment successful and order status updated to PAID.");
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Payment failed with message " + paymentSuccessful.getMessage());
+        }
     }
 }

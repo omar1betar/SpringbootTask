@@ -3,16 +3,20 @@ package com.neoleaptask.NeoleapTask.service.impl;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.map.IMap;
 import com.neoleaptask.NeoleapTask.dto.OrderRequestDto;
+import com.neoleaptask.NeoleapTask.dto.PaymentResponseDto;
+import com.neoleaptask.NeoleapTask.enums.OrderStatus;
 import com.neoleaptask.NeoleapTask.mapper.OrderMapper;
 import com.neoleaptask.NeoleapTask.model.Order;
 import com.neoleaptask.NeoleapTask.repository.OrderRepository;
 import com.neoleaptask.NeoleapTask.service.OrderService;
 import lombok.AllArgsConstructor;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -23,11 +27,14 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final HazelcastInstance hazelcastInstance;
     private final IMap<Long, Order> ordersMap;
+    private final RabbitTemplate rabbitTemplate;
 
-    public OrderServiceImpl(OrderRepository orderRepository, HazelcastInstance hazelcastInstance) {
+
+    public OrderServiceImpl(OrderRepository orderRepository, HazelcastInstance hazelcastInstance, RabbitTemplate rabbitTemplate) {
         this.orderRepository = orderRepository;
         this.hazelcastInstance = hazelcastInstance;
         this.ordersMap = hazelcastInstance.getMap("orders");
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     /**
@@ -42,9 +49,7 @@ public class OrderServiceImpl implements OrderService {
     public Order getOrderById(Long id) {
         // First, try to get the order from Hazelcast
         Order order = ordersMap.get(id);
-        System.out.println("getorderbyid start");
         System.out.println(order);
-        System.out.println("getorderbyid end");
 
         if (order == null) {
             // If the order is not found in the cache, retrieve it from the DB
@@ -133,5 +138,53 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.delete(order);
         // Evict the order from Hazelcast as well to maintain cache consistency
         ordersMap.remove(id);
+    }
+
+    @Transactional
+    @Override
+    @CachePut(value = "orders", key = "#id") // Put updated order into cache
+    @CacheEvict(value = "orders", key = "'allOrders'") // Evict the cached list of all orders
+    public PaymentResponseDto createPayment(Long id, BigDecimal amount) {
+        try {
+            Order order = getOrderById(id);
+
+            if(order.getStatus() == OrderStatus.PAID) {
+                return new PaymentResponseDto(false,"Order already paid");
+            }
+
+            if(order.getAmount().compareTo(amount) != 0) {
+                return new PaymentResponseDto(false,"Entered amount not equal order amount");
+            }
+
+            // Simulate a real payment process her
+            boolean isPaymentSuccessful = processPayment(order);
+
+            if (!isPaymentSuccessful) {
+                return new PaymentResponseDto(false, "Payment failed");
+            }
+
+            sendPaymentMessage(id, amount);
+            order.setStatus(OrderStatus.PAID);
+            orderRepository.save(order);
+            return new PaymentResponseDto(true, "Payment Success");
+
+        } catch (Exception e) {
+            // Handle exceptions (e.g., order not found, payment gateway errors)
+            e.printStackTrace();
+            return new PaymentResponseDto(false, "Something went wrong");
+        }
+    }
+
+
+    // Simulate payment processing
+    private boolean processPayment(Order order) {
+        // For now, simulate a successful payment (return true).
+        return true;  // Simulate successful payment
+    }
+
+    public void sendPaymentMessage(Long orderId, BigDecimal amount) {
+        String message = "Payment of " + amount + " for Order ID: " + orderId;
+        rabbitTemplate.convertAndSend("paymentExchange", "paymentRoutingKey", message);
+        System.out.println("Sent payment message: " + message);
     }
 }

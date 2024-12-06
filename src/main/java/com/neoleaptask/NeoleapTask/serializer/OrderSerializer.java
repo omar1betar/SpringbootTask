@@ -1,9 +1,7 @@
 package com.neoleaptask.NeoleapTask.serializer;
 
-import com.hazelcast.nio.ObjectDataInput;
-import com.hazelcast.nio.ObjectDataOutput;
+
 import com.hazelcast.nio.serialization.ByteArraySerializer;
-import com.hazelcast.nio.serialization.StreamSerializer;
 import com.neoleaptask.NeoleapTask.model.Order;
 import org.hibernate.type.SerializationException;
 
@@ -39,6 +37,5 @@ public class OrderSerializer implements ByteArraySerializer<Order> {
 
     @Override
     public void destroy() {
-        // Cleanup resources if needed
     }
 }
