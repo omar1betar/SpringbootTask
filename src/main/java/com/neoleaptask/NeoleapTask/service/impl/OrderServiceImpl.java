@@ -45,7 +45,6 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     @CachePut(value = "orders", key = "#id") // Cache the updated order by its ID.
-    @CacheEvict(value = "orders", key = "'allOrders'") // Evict the cached list of all orders.
     public Order getOrderById(Long id) {
         // First, try to get the order from Hazelcast
         Order order = ordersMap.get(id);
@@ -111,7 +110,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     @CachePut(value = "orders", key = "#id") // Put updated order into cache
-    @CacheEvict(value = "orders", key = "'allOrders'") // Evict the cached list of all orders
+    @CacheEvict(value = "orders", key = "#id") // Evict the cached list of all orders
     public Order updateOrder(Long id, Order updatedOrder) {
         Order existingOrder = getOrderById(id);
         existingOrder.setDescription(updatedOrder.getDescription());
@@ -143,7 +142,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     @Override
     @CachePut(value = "orders", key = "#id") // Put updated order into cache
-    @CacheEvict(value = "orders", key = "'allOrders'") // Evict the cached list of all orders
+    @CacheEvict(value = "orders", key = "#id") // Evict the cached list of all orders
     public PaymentResponseDto createPayment(Long id, BigDecimal amount) {
         try {
             Order order = getOrderById(id);

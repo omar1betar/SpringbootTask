@@ -4,6 +4,11 @@ import com.neoleaptask.NeoleapTask.dto.OrderRequestDto;
 import com.neoleaptask.NeoleapTask.dto.PaymentResponseDto;
 import com.neoleaptask.NeoleapTask.model.Order;
 import com.neoleaptask.NeoleapTask.service.OrderService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheConfig;
@@ -18,82 +23,112 @@ import java.util.List;
 @RestController
 @RequestMapping("/orders")
 @CacheConfig(cacheNames = "orders")
+@Tag(name = "Order Operations", description = "Operations for creating, retrieving, updating, and deleting orders, as well as processing payments.")
 public class OrderController {
 
-    // Logger to log important information, warnings, and errors
     private static final Logger logger = LoggerFactory.getLogger(OrderController.class);
 
-    // Injecting the OrderService to handle business logic
     private final OrderService orderService;
 
-    // Constructor to initialize the OrderService
     public OrderController(OrderService orderService) {
         this.orderService = orderService;
     }
 
-
     @PostMapping
+    @Operation(
+            summary = "Create a new order",
+            description = "This endpoint creates a new order based on the provided order details.",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Order created successfully",
+                            content = @io.swagger.v3.oas.annotations.media.Content(mediaType = "application/json",
+                                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = Order.class))),
+                    @ApiResponse(responseCode = "400", description = "Invalid input")
+            }
+    )
     public ResponseEntity<Order> createOrder(@RequestBody @Validated OrderRequestDto orderDto) {
-        // Call the service to create the order
         Order createdOrder = orderService.createOrder(orderDto);
-
-        // Return a ResponseEntity with the created order and 201 Created status
         return ResponseEntity.status(HttpStatus.CREATED).body(createdOrder);
     }
 
-
     @GetMapping("/{id}")
-    public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
-        // Log the request for debugging purposes
+    @Operation(
+            summary = "Get order by ID",
+            description = "Fetches an order using the order's unique ID.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Order retrieved successfully",
+                            content = @io.swagger.v3.oas.annotations.media.Content(mediaType = "application/json",
+                                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = Order.class))),
+                    @ApiResponse(responseCode = "404", description = "Order not found")
+            }
+    )
+    public ResponseEntity<Order> getOrderById(@Parameter(description = "ID of the order to be fetched")
+                                              @PathVariable Long id) {
         logger.info("Fetching order with ID {}", id);
-
-        // Get the order from the service
         Order order = orderService.getOrderById(id);
-
-        // Return the order with 200 OK status
         return ResponseEntity.ok(order);
     }
 
-
     @GetMapping
+    @Operation(
+            summary = "Get all orders",
+            description = "Fetches all orders from the system.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "List of orders",
+                            content = @io.swagger.v3.oas.annotations.media.Content(mediaType = "application/json",
+                                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = Order.class))),
+                    @ApiResponse(responseCode = "204", description = "No orders found")
+            }
+    )
     public ResponseEntity<List<Order>> getAllOrders() {
-        // Get all orders from the service
         List<Order> orders = orderService.getAllOrders();
-
-        // Check if the list of orders is empty
         if (orders.isEmpty()) {
-            // Return 204 No Content if no orders found
             return ResponseEntity.noContent().build();
         }
-
-        // Return the list of orders with 200 OK status
         return ResponseEntity.ok(orders);
     }
 
-
     @PutMapping("/{id}")
+    @Operation(
+            summary = "Update an existing order",
+            description = "Updates an order with the provided details.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Order updated successfully",
+                            content = @io.swagger.v3.oas.annotations.media.Content(mediaType = "application/json",
+                                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = Order.class))),
+                    @ApiResponse(responseCode = "404", description = "Order not found")
+            }
+    )
     public ResponseEntity<Order> updateOrder(@PathVariable Long id, @RequestBody @Validated Order updatedOrder) {
-        // Call the service to update the order
         Order order = orderService.updateOrder(id, updatedOrder);
-
-        // Return the updated order with 200 OK status
         return ResponseEntity.ok(order);
     }
 
-
     @DeleteMapping("/{id}")
+    @Operation(
+            summary = "Delete an order",
+            description = "Deletes an order from the system using the provided order ID.",
+            responses = {
+                    @ApiResponse(responseCode = "204", description = "Order deleted successfully"),
+                    @ApiResponse(responseCode = "404", description = "Order not found")
+            }
+    )
     public ResponseEntity<Void> deleteOrder(@PathVariable Long id) {
-        // Call the service to delete the order
         orderService.deleteOrder(id);
-
-        // Return HTTP status 204 (No Content) after deletion
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/payment")
-    public ResponseEntity<String> createPayment(@PathVariable Long id, @RequestParam BigDecimal amount) {
+    @Operation(
+            summary = "Process payment for an order",
+            description = "Processes a payment for the specified order ID and updates the order status accordingly.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Payment successful, order status updated"),
+                    @ApiResponse(responseCode = "400", description = "Payment failed")
+            }
+    )
+    public ResponseEntity<String> createPayment(@PathVariable Long id,
+                                                @RequestParam BigDecimal amount) {
         PaymentResponseDto paymentSuccessful = orderService.createPayment(id, amount);
-
         if (paymentSuccessful.isStatus()) {
             return ResponseEntity.status(HttpStatus.OK).body("Payment successful and order status updated to PAID.");
         } else {
