@@ -17,12 +17,24 @@ public class OrderRequestDto {
     private String description;
 
     @NotNull
+    @Size(min = 5, max = 255)
+    private String productName;
+
+    @NotNull
     @DecimalMin(value = "0.1", inclusive = true)
     private BigDecimal amount;
 
     @NotNull
     @Pattern(regexp = "NEW|PAID|CANCELLED")
     private String status;
+
+    public @NotNull @Size(min = 5, max = 255) String getProductName() {
+        return productName;
+    }
+
+    public void setProductName(@NotNull @Size(min = 5, max = 255) String productName) {
+        this.productName = productName;
+    }
 
     public @NotNull @DecimalMin(value = "0.1", inclusive = true) BigDecimal getAmount() {
         return amount;

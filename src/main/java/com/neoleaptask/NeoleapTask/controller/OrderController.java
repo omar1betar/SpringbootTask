@@ -1,7 +1,9 @@
 package com.neoleaptask.NeoleapTask.controller;
 
 import com.neoleaptask.NeoleapTask.dto.OrderRequestDto;
+import com.neoleaptask.NeoleapTask.dto.OrderResponseDto;
 import com.neoleaptask.NeoleapTask.dto.PaymentResponseDto;
+import com.neoleaptask.NeoleapTask.mapper.OrderMapper;
 import com.neoleaptask.NeoleapTask.model.Order;
 import com.neoleaptask.NeoleapTask.service.OrderService;
 
@@ -45,8 +47,8 @@ public class OrderController {
                     @ApiResponse(responseCode = "400", description = "Invalid input")
             }
     )
-    public ResponseEntity<Order> createOrder(@RequestBody @Validated OrderRequestDto orderDto) {
-        Order createdOrder = orderService.createOrder(orderDto);
+    public ResponseEntity<OrderResponseDto> createOrder(@RequestBody @Validated OrderRequestDto orderDto) {
+        OrderResponseDto createdOrder = orderService.createOrder(orderDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdOrder);
     }
 
@@ -61,11 +63,11 @@ public class OrderController {
                     @ApiResponse(responseCode = "404", description = "Order not found")
             }
     )
-    public ResponseEntity<Order> getOrderById(@Parameter(description = "ID of the order to be fetched")
+    public ResponseEntity<OrderResponseDto> getOrderById(@Parameter(description = "ID of the order to be fetched")
                                               @PathVariable Long id) {
-        logger.info("Fetching order with ID {}", id);
         Order order = orderService.getOrderById(id);
-        return ResponseEntity.ok(order);
+
+        return ResponseEntity.ok(OrderMapper.toOrderResponseDto(order));
     }
 
     @GetMapping
@@ -79,8 +81,8 @@ public class OrderController {
                     @ApiResponse(responseCode = "204", description = "No orders found")
             }
     )
-    public ResponseEntity<List<Order>> getAllOrders() {
-        List<Order> orders = orderService.getAllOrders();
+    public ResponseEntity<List<OrderResponseDto>> getAllOrders() {
+        List<OrderResponseDto> orders = orderService.getAllOrders();
         if (orders.isEmpty()) {
             return ResponseEntity.noContent().build();
         }
@@ -98,8 +100,8 @@ public class OrderController {
                     @ApiResponse(responseCode = "404", description = "Order not found")
             }
     )
-    public ResponseEntity<Order> updateOrder(@PathVariable Long id, @RequestBody @Validated Order updatedOrder) {
-        Order order = orderService.updateOrder(id, updatedOrder);
+    public ResponseEntity<OrderResponseDto> updateOrder(@PathVariable Long id, @RequestBody @Validated Order updatedOrder) {
+        OrderResponseDto order = orderService.updateOrder(id, updatedOrder);
         return ResponseEntity.ok(order);
     }
 

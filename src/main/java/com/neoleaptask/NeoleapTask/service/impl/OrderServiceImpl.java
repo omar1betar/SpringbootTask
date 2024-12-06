@@ -3,6 +3,7 @@ package com.neoleaptask.NeoleapTask.service.impl;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.map.IMap;
 import com.neoleaptask.NeoleapTask.dto.OrderRequestDto;
+import com.neoleaptask.NeoleapTask.dto.OrderResponseDto;
 import com.neoleaptask.NeoleapTask.dto.PaymentResponseDto;
 import com.neoleaptask.NeoleapTask.enums.OrderStatus;
 import com.neoleaptask.NeoleapTask.mapper.OrderMapper;
@@ -67,20 +68,29 @@ public class OrderServiceImpl implements OrderService {
      * @return A list of all orders.
      */
     @Override
-    public List<Order> getAllOrders() {
+    public List<OrderResponseDto> getAllOrders() {
         // Check if the orders are already in the cache
+        List<OrderResponseDto> results = new ArrayList<>();
         List<Order> orders = new ArrayList<>();
         for (Long id : ordersMap.keySet()) {
             orders.add(ordersMap.get(id));
+
+            OrderResponseDto orderdto = OrderMapper.toOrderResponseDto(ordersMap.get(id));
+            results.add(orderdto);
         }
 
         if (orders.isEmpty()) {
             // Cache miss, fetch orders from DB and cache each one
             orders = orderRepository.findAll();
-            orders.forEach(order -> ordersMap.put(order.getId(), order)); // Store each order individually in the cache
+            orders.forEach(order -> {
+                ordersMap.put(order.getId(), order);
+                OrderResponseDto orderdto = OrderMapper.toOrderResponseDto(order);
+                results.add(orderdto);
+            });
+
         }
 
-        return orders;
+        return results;
     }
 
     /**
@@ -92,12 +102,13 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     @CacheEvict(value = "orders", key = "'allOrders'") // Evict the entire list cache
-    public Order createOrder(OrderRequestDto orderDto) {
+    public OrderResponseDto createOrder(OrderRequestDto orderDto) {
         Order orderEntity = OrderMapper.toOrder(orderDto);
         Order savedOrder = orderRepository.save(orderEntity);
         // Cache the new order individually
         ordersMap.put(savedOrder.getId(), savedOrder);
-        return savedOrder;
+        OrderResponseDto result = OrderMapper.toOrderResponseDto(savedOrder);
+        return result;
     }
 
     /**
@@ -111,16 +122,18 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     @CachePut(value = "orders", key = "#id") // Put updated order into cache
     @CacheEvict(value = "orders", key = "#id") // Evict the cached list of all orders
-    public Order updateOrder(Long id, Order updatedOrder) {
+    public OrderResponseDto updateOrder(Long id, Order updatedOrder) {
         Order existingOrder = getOrderById(id);
         existingOrder.setDescription(updatedOrder.getDescription());
         existingOrder.setAmount(updatedOrder.getAmount());
+        existingOrder.setProductName(updatedOrder.getProductName());
         existingOrder.setStatus(updatedOrder.getStatus());
         Order savedOrder = orderRepository.save(existingOrder);
 
         // Cache the updated order individually
         ordersMap.put(savedOrder.getId(), savedOrder);
-        return savedOrder;
+
+        return OrderMapper.toOrderResponseDto(savedOrder);
     }
 
 
@@ -141,14 +154,14 @@ public class OrderServiceImpl implements OrderService {
 
     @Transactional
     @Override
-    @CachePut(value = "orders", key = "#id") // Put updated order into cache
     @CacheEvict(value = "orders", key = "#id") // Evict the cached list of all orders
+    @CachePut(value = "orders", key = "'allOrders'") // Put updated order into cache
     public PaymentResponseDto createPayment(Long id, BigDecimal amount) {
         try {
             Order order = getOrderById(id);
 
-            if(order.getStatus() == OrderStatus.PAID) {
-                return new PaymentResponseDto(false,"Order already paid");
+            if(order.getStatus() != OrderStatus.NEW) {
+                return new PaymentResponseDto(false,"Your Order is "+order.getStatus());
             }
 
             if(order.getAmount().compareTo(amount) != 0) {
