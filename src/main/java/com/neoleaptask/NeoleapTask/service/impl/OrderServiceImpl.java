@@ -49,7 +49,6 @@ public class OrderServiceImpl implements OrderService {
     public Order getOrderById(Long id) {
         // First, try to get the order from Hazelcast
         Order order = ordersMap.get(id);
-        System.out.println(order);
 
         if (order == null) {
             // If the order is not found in the cache, retrieve it from the DB
@@ -154,8 +153,8 @@ public class OrderServiceImpl implements OrderService {
 
     @Transactional
     @Override
-    @CacheEvict(value = "orders", key = "#id") // Evict the cached list of all orders
-    @CachePut(value = "orders", key = "'allOrders'") // Put updated order into cache
+    @CacheEvict(value = "orders", allEntries = true) // Evict the cached list of all orders
+    @CachePut(value = "orders", key = "#id") // Put updated order into cache
     public PaymentResponseDto createPayment(Long id, BigDecimal amount) {
         try {
             Order order = getOrderById(id);
@@ -178,6 +177,8 @@ public class OrderServiceImpl implements OrderService {
             sendPaymentMessage(id, amount);
             order.setStatus(OrderStatus.PAID);
             orderRepository.save(order);
+            ordersMap.put(order.getId(), order);
+
             return new PaymentResponseDto(true, "Payment Success");
 
         } catch (Exception e) {
